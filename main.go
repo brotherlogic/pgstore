@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 func checkDBVersion() (string, error) {
