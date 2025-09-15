@@ -24,6 +24,12 @@ func checkDBVersion() (string, error) {
 	}
 	defer db.Close()
 
+	// Validate that we can reach the db
+	pingErr := db.Ping()
+	if pingErr != nil {
+		return "", pingErr
+	}
+
 	return "", nil
 }
 
