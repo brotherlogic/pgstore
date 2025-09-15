@@ -39,10 +39,16 @@ func checkDBVersion() (string, error) {
 	defer rows.Close()
 	var version string
 
+	count := 0
 	for rows.Next() {
 		if err := rows.Scan(&version); err != nil {
 			return "", err
 		}
+		count++
+	}
+
+	if count > 1 {
+		return "", fmt.Errorf("Mulitple rows in the version table!")
 	}
 
 	return version, nil
