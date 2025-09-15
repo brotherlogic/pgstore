@@ -38,6 +38,6 @@ func main() {
 		version, err := checkDBVersion()
 		log.Printf("%v -> %v", version, err)
 
-		time.Sleep(1)
+		time.Sleep(time.Minute)
 	}
 }
