@@ -30,7 +30,22 @@ func checkDBVersion() (string, error) {
 		return "", pingErr
 	}
 
-	return "", nil
+	// Check the version table
+	rows, err := db.Query("SELECT * FROM version")
+	if err != nil {
+		return "", err
+	}
+
+	defer rows.Close()
+	var version string
+
+	for rows.Next() {
+		if err := rows.Scan(&version); err != nil {
+			return "", err
+		}
+	}
+
+	return version, nil
 }
 
 func main() {
