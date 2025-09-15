@@ -48,7 +48,7 @@ func checkDBVersion() (string, error) {
 	}
 
 	if count > 1 {
-		return "", fmt.Errorf("Mulitple rows in the version table!")
+		return "", fmt.Errorf("mulitple rows in the version table")
 	}
 
 	return version, nil
