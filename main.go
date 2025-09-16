@@ -85,9 +85,11 @@ func main() {
 		version, err := checkDBVersion()
 		log.Printf("%v -> %v", version, err)
 
-		if err.(*pg.Error).Code == "42P01" {
+		if err != nil && err.(*pg.Error).Code == "42P01" {
 			err = createVersionTable()
 			log.Printf("Created version table: %v", err)
+		} else {
+			log.Printf("SOme other error: %v", err)
 		}
 
 		time.Sleep(time.Minute)
