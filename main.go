@@ -12,7 +12,7 @@ import (
 
 func checkDBVersion() (string, error) {
 	psqlInfo := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("PG_HOST"),
 		os.Getenv("PG_PORT"),
 		os.Getenv("PG_USER"),
