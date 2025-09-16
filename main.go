@@ -7,8 +7,33 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
+	pg "github.com/lib/pq"
 )
+
+func createVersionTable() error {
+	psqlInfo := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("PG_HOST"),
+		os.Getenv("PG_PORT"),
+		os.Getenv("PG_USER"),
+		os.Getenv("PG_PASSWORD"),
+		os.Getenv("PG_DBNAME"))
+	log.Printf("OPENING %v", psqlInfo)
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO version (version) VALUES ('1'))")
+
+	return err
+}
 
 func checkDBVersion() (string, error) {
 	psqlInfo := fmt.Sprintf(
@@ -59,6 +84,11 @@ func main() {
 	for {
 		version, err := checkDBVersion()
 		log.Printf("%v -> %v", version, err)
+
+		if err.(*pg.Error).Code == "42P01" {
+			err = createVersionTable()
+			log.Printf("Created version table: %v", err)
+		}
 
 		time.Sleep(time.Minute)
 	}
