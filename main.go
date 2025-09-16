@@ -18,6 +18,7 @@ func checkDBVersion() (string, error) {
 		os.Getenv("PG_USER"),
 		os.Getenv("PG_PASSWORD"),
 		os.Getenv("PG_DBNAME"))
+	log.Printf("OPENING %v", psqlInfo)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		return "", err
