@@ -93,3 +93,49 @@ func TestReadWrite(t *testing.T) {
 		t.Errorf("Read has come back and is wrong: %v", ndata)
 	}
 }
+
+func TestGetKeys(t *testing.T) {
+	pgurl, err := pgt.CreateDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", pgurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	s := &Server{db: db}
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
+
+	data := &pstore.ReadRequest{Key: "hello"}
+	datav, err := proto.Marshal(data)
+	if err != nil {
+		t.Fatalf("Cannot marshal: %v", err)
+	}
+
+	_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: "testing", Value: &anypb.Any{Value: datav}})
+	if err != nil {
+		t.Fatalf("Unable to write: %v", err)
+	}
+	_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: "testing2", Value: &anypb.Any{Value: datav}})
+	if err != nil {
+		t.Fatalf("unable to write: %v", err)
+	}
+
+	keys, err := s.GetKeys(context.Background(), &pstore.GetKeysRequest{Prefix: "test"})
+	if err != nil {
+		t.Fatalf("Unable to get keys: %v", err)
+	}
+	if len(keys.GetKeys()) != 2 {
+		t.Fatalf("Wrong keys: %v", keys.GetKeys())
+	}
+	if (keys.GetKeys()[0] != "testing" || keys.GetKeys()[1] != "testing2") &&
+		(keys.GetKeys()[1] != "testing" || keys.GetKeys()[0] != "testing2") {
+		t.Errorf("The wrong keys were returned: %v", keys)
+	}
+
+}

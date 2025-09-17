@@ -36,6 +36,23 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 }
 
 func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*pstore.GetKeysResponse, error) {
+	if req.GetPrefix() != "" {
+		rows, err := s.db.Query("SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var key string
+		var keys []string
+		for rows.Next() {
+			if err := rows.Scan(&key); err == nil {
+				keys = append(keys, key)
+			}
+		}
+
+		return &pstore.GetKeysResponse{Keys: keys}, nil
+	}
 	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
 }
 
