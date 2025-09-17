@@ -10,7 +10,11 @@ import (
 	pg "github.com/lib/pq"
 )
 
-func createVersionTable() error {
+type server struct {
+	db *sql.DB
+}
+
+func createServer() (*server, error) {
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("PG_HOST"),
@@ -21,43 +25,37 @@ func createVersionTable() error {
 	log.Printf("OPENING %v", psqlInfo)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer db.Close()
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
+	return &server{db: db}, nil
+}
+
+func (s *server) createStorageTable() error {
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS pgstore (key VARCHAR(100) PRIMARY KEY, value BYTEA))")
+	return err
+}
+
+func (s *server) createVersionTable(value int) error {
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO version (version) VALUES ('1'))")
+	_, err = s.db.Exec(fmt.Sprintf("INSERT INTO version (version) VALUES ('%v'))", value))
 
 	return err
 }
 
-func checkDBVersion() (string, error) {
-	psqlInfo := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("PG_HOST"),
-		os.Getenv("PG_PORT"),
-		os.Getenv("PG_USER"),
-		os.Getenv("PG_PASSWORD"),
-		os.Getenv("PG_DBNAME"))
-	log.Printf("OPENING %v", psqlInfo)
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
+func (s *server) checkDBVersion() (string, error) {
 	// Validate that we can reach the db
-	pingErr := db.Ping()
+	pingErr := s.db.Ping()
 	if pingErr != nil {
 		return "", pingErr
 	}
 
 	// Check the version table
-	rows, err := db.Query("SELECT * FROM version")
+	rows, err := s.db.Query("SELECT * FROM version")
 	if err != nil {
 		return "", err
 	}
@@ -80,18 +78,59 @@ func checkDBVersion() (string, error) {
 	return version, nil
 }
 
-func main() {
-	for {
-		version, err := checkDBVersion()
-		log.Printf("%v -> %v", version, err)
+func (s *server) updateVersion(val int) error {
+	_, err := s.db.Exec("UPDATE version FROM ")
+	return err
+}
 
-		if err != nil && err.(*pg.Error).Code == "42P01" {
-			err = createVersionTable()
-			log.Printf("Created version table: %v", err)
-		} else {
-			log.Printf("SOme other error: %v", err)
+func (s *server) initDB() error {
+	// Inits the DB to version 2
+	version, err := s.checkDBVersion()
+
+	if err != nil && err.(*pg.Error).Code == "42P01" {
+		err = s.createVersionTable(2)
+		if err != nil {
+			return err
+		}
+		err = s.createStorageTable()
+		if err != nil {
+			return err
 		}
 
+		return nil
+	}
+
+	if version == "1" {
+		err = s.createStorageTable()
+		if err != nil {
+			return err
+		}
+		err = s.updateVersion(2)
+		if err != nil {
+			return err
+		}
+	}
+
+	if version == "2" {
+		return nil
+	}
+
+	return fmt.Errorf("bad version response: %v, %v", version, err)
+}
+
+func main() {
+	server, err := createServer()
+	if err != nil {
+		log.Fatalf("unable to create server: %v", err)
+	}
+
+	err = server.initDB()
+	if err != nil {
+		log.Fatalf("unable to init the db: %v", err)
+	}
+
+	for {
+		log.Printf("Serving")
 		time.Sleep(time.Minute)
 	}
 }
