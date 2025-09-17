@@ -1,2 +1,6 @@
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da h1:b0x2DrMfYi9f0dIn36/xrX3ztyam/fByaN14MO48G7s=
+github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b h1:q/MknU0WKJ68bQi/kqIgXPHaKhDfvWwPkQL8C/Eky8I=
+github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b/go.mod h1:9E1zLb00gbBasFVUFjrpQ1WEjQP5/ZHLsMCeImM9/s4=
