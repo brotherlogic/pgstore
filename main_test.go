@@ -90,6 +90,6 @@ func TestReadWrite(t *testing.T) {
 		t.Fatalf("Unable to unmarshal: %v", err)
 	}
 	if ndata.Key != "hello" {
-		t.Errorf("Read has come back wrong: %v", ndata)
+		t.Errorf("Read has come back and is wrong: %v", ndata)
 	}
 }
