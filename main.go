@@ -47,6 +47,11 @@ func (s *Server) createStorageTable() error {
 	return err
 }
 
+func (s *Server) createCounterTable() error {
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS counters (key VARCHAR(100) PRIMARY KEY, value INT)")
+	return err
+}
+
 func (s *Server) createVersionTable(value int) error {
 	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
 	if err != nil {
@@ -102,22 +107,14 @@ func (s *Server) initDB() error {
 	version, err := s.checkDBVersion()
 
 	if err != nil && err.(*pg.Error).Code == "42P01" {
-		err = s.createVersionTable(2)
+		err = s.createVersionTable(1)
 		if err != nil {
 			return fmt.Errorf("unable to create version table: %w", err)
 		}
-		err = s.createStorageTable()
-		if err != nil {
-			return fmt.Errorf("unable to create storage table: %w", err)
-		}
-		err = s.createStorageTable()
-		if err != nil {
-			return err
-		}
-
-		return nil
+		version = "1"
 	}
 
+	// Version 2 adds the first version of the storage table
 	if version == "1" {
 		err = s.createStorageTable()
 		if err != nil {
@@ -127,9 +124,23 @@ func (s *Server) initDB() error {
 		if err != nil {
 			return err
 		}
+		version = "2"
 	}
 
+	// Version 3 adds the counter table
 	if version == "2" {
+		err = s.createCounterTable()
+		if err != nil {
+			return err
+		}
+		err = s.updateVersion(3)
+		if err != nil {
+			return err
+		}
+		version = "3"
+	}
+
+	if version == "3" {
 		return nil
 	}
 

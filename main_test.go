@@ -46,7 +46,7 @@ func TestInitDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if version != "2" {
+	if version != "3" {
 		t.Errorf("Bad db version: %v", version)
 	}
 }
