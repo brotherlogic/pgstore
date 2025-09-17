@@ -32,17 +32,17 @@ func createServer() (*server, error) {
 }
 
 func (s *server) createStorageTable() error {
-	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS pgstore (key VARCHAR(100) PRIMARY KEY, value BYTEA))")
+	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS pgstore (key VARCHAR(100) PRIMARY KEY, value BYTEA)")
 	return err
 }
 
 func (s *server) createVersionTable(value int) error {
 	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
 	if err != nil {
-		return err
+		return fmt.Errorf("bad create: %w", err)
 	}
 
-	_, err = s.db.Exec(fmt.Sprintf("INSERT INTO version (version) VALUES ('%v'))", value))
+	_, err = s.db.Exec("INSERT INTO version VALUES ($1)", value)
 
 	return err
 }
@@ -74,12 +74,15 @@ func (s *server) checkDBVersion() (string, error) {
 	if count > 1 {
 		return "", fmt.Errorf("mulitple rows in the version table")
 	}
+	if count == 0 {
+		return "", fmt.Errorf("no rows found")
+	}
 
 	return version, nil
 }
 
 func (s *server) updateVersion(val int) error {
-	_, err := s.db.Exec("UPDATE version FROM ")
+	_, err := s.db.Exec("UPDATE version SET version = $1", val)
 	return err
 }
 
@@ -90,7 +93,11 @@ func (s *server) initDB() error {
 	if err != nil && err.(*pg.Error).Code == "42P01" {
 		err = s.createVersionTable(2)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to create version table: %w", err)
+		}
+		err = s.createStorageTable()
+		if err != nil {
+			return fmt.Errorf("unable to create storage table: %w", err)
 		}
 		err = s.createStorageTable()
 		if err != nil {

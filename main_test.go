@@ -33,7 +33,10 @@ func TestInitDB(t *testing.T) {
 	defer db.Close()
 
 	s := &server{db: db}
-	s.initDB()
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
 
 	// Check that we've built to version2
 	version, err := s.checkDBVersion()
