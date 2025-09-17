@@ -2,19 +2,30 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
-	"time"
 
 	pg "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+
+	pstore "github.com/brotherlogic/pstore/proto"
 )
 
-type server struct {
+var (
+	port        = flag.Int("port", 8080, "The server port.")
+	metricsPort = flag.Int("metrics_port", 8081, "Metrics port")
+)
+
+type Server struct {
 	db *sql.DB
 }
 
-func createServer() (*server, error) {
+func createServer() (*Server, error) {
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		os.Getenv("PG_HOST"),
@@ -28,15 +39,15 @@ func createServer() (*server, error) {
 		return nil, err
 	}
 
-	return &server{db: db}, nil
+	return &Server{db: db}, nil
 }
 
-func (s *server) createStorageTable() error {
+func (s *Server) createStorageTable() error {
 	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS pgstore (key VARCHAR(100) PRIMARY KEY, value BYTEA)")
 	return err
 }
 
-func (s *server) createVersionTable(value int) error {
+func (s *Server) createVersionTable(value int) error {
 	_, err := s.db.Exec("CREATE TABLE IF NOT EXISTS version (version text)")
 	if err != nil {
 		return fmt.Errorf("bad create: %w", err)
@@ -47,7 +58,7 @@ func (s *server) createVersionTable(value int) error {
 	return err
 }
 
-func (s *server) checkDBVersion() (string, error) {
+func (s *Server) checkDBVersion() (string, error) {
 	// Validate that we can reach the db
 	pingErr := s.db.Ping()
 	if pingErr != nil {
@@ -81,12 +92,12 @@ func (s *server) checkDBVersion() (string, error) {
 	return version, nil
 }
 
-func (s *server) updateVersion(val int) error {
+func (s *Server) updateVersion(val int) error {
 	_, err := s.db.Exec("UPDATE version SET version = $1", val)
 	return err
 }
 
-func (s *server) initDB() error {
+func (s *Server) initDB() error {
 	// Inits the DB to version 2
 	version, err := s.checkDBVersion()
 
@@ -136,8 +147,25 @@ func main() {
 		log.Fatalf("unable to init the db: %v", err)
 	}
 
-	for {
-		log.Printf("Serving")
-		time.Sleep(time.Minute)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	if err != nil {
+		log.Fatalf("rstore failed to listen on the serving port %v: %v", *port, err)
+	}
+	size := 1024 * 1024 * 1000
+	gs := grpc.NewServer(
+		grpc.MaxSendMsgSize(size),
+		grpc.MaxRecvMsgSize(size),
+	)
+	pstore.RegisterPStoreServiceServer(gs, server)
+	log.Printf("rstore is listening on %v", lis.Addr())
+
+	// Setup prometheus export
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		http.ListenAndServe(fmt.Sprintf(":%v", *metricsPort), nil)
+	}()
+
+	if err := gs.Serve(lis); err != nil {
+		log.Fatalf("rstore failed to serve: %v", err)
 	}
 }

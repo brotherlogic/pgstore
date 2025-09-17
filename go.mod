@@ -2,6 +2,25 @@ module github.com/brotherlogic/pgstore
 
 go 1.23.8
 
-require github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da
+require (
+	github.com/brotherlogic/pstore v0.33.0
+	github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da
+	github.com/prometheus/client_golang v1.20.5
+	google.golang.org/grpc v1.67.1
+)
 
-require github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b // indirect
+require (
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.60.1 // indirect
+	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
+	google.golang.org/protobuf v1.35.1 // indirect
+)
