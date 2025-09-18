@@ -114,7 +114,7 @@ func (s *Server) initDB() error {
 		// This means we have a version table, but that it's empty
 		err = s.updateVersion(1)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to update version: %w", err)
 		}
 	}
 
