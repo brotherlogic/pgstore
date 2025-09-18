@@ -12,6 +12,8 @@ import (
 	pg "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pstore "github.com/brotherlogic/pstore/proto"
 )
@@ -91,7 +93,7 @@ func (s *Server) checkDBVersion() (string, error) {
 		return "", fmt.Errorf("mulitple rows in the version table")
 	}
 	if count == 0 {
-		return "", fmt.Errorf("no rows found")
+		return "", status.Errorf(codes.InvalidArgument, "no rows found")
 	}
 
 	return version, nil
@@ -107,6 +109,14 @@ func (s *Server) initDB() error {
 	version, err := s.checkDBVersion()
 
 	log.Printf("Checked version: %v", err)
+
+	if err != nil && status.Code(err) == codes.InvalidArgument {
+		// This means we have a version table, but that it's empty
+		err = s.updateVersion(1)
+		if err != nil {
+			return err
+		}
+	}
 
 	if err != nil && err.(*pg.Error).Code == "42P01" {
 		err = s.createVersionTable(1)
