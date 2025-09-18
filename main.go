@@ -106,6 +106,8 @@ func (s *Server) initDB() error {
 	// Inits the DB to version 2
 	version, err := s.checkDBVersion()
 
+	log.Printf("Checked version: %v", err)
+
 	if err != nil && err.(*pg.Error).Code == "42P01" {
 		err = s.createVersionTable(1)
 		if err != nil {
