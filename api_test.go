@@ -88,3 +88,72 @@ func TestCounter(t *testing.T) {
 		t.Fatalf("Did not get right counter: %v", resp)
 	}
 }
+
+func TestReadDualWrite(t *testing.T) {
+	pgurl, err := pgt.CreateDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", pgurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	s := &Server{db: db}
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
+
+	data := &pstore.ReadRequest{Key: "hello"}
+	datav, err := proto.Marshal(data)
+	if err != nil {
+		t.Fatalf("Cannot marshal: %v", err)
+	}
+
+	_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: "testing", Value: &anypb.Any{Value: datav}})
+	if err != nil {
+		t.Fatalf("Unable to write: %v", err)
+	}
+
+	val, err := s.Read(context.Background(), &pstore.ReadRequest{Key: "testing"})
+	if err != nil {
+		t.Fatalf("Unable to read: %v", err)
+	}
+
+	ndata := &pstore.ReadRequest{}
+	err = proto.Unmarshal(val.GetValue().GetValue(), ndata)
+	if err != nil {
+		t.Fatalf("Unable to unmarshal: %v", err)
+	}
+	if ndata.Key != "hello" {
+		t.Errorf("Read has come back and is wrong: %v", ndata)
+	}
+
+	// Let's overwrite the key
+	data = &pstore.ReadRequest{Key: "hello2"}
+	datav, err = proto.Marshal(data)
+	if err != nil {
+		t.Fatalf("Cannot marshal: %v", err)
+	}
+	_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: "testing", Value: &anypb.Any{Value: datav}})
+	if err != nil {
+		t.Fatalf("Unable to write: %v", err)
+	}
+
+	val, err = s.Read(context.Background(), &pstore.ReadRequest{Key: "testing"})
+	if err != nil {
+		t.Fatalf("Unable to read: %v", err)
+	}
+
+	ndata = &pstore.ReadRequest{}
+	err = proto.Unmarshal(val.GetValue().GetValue(), ndata)
+	if err != nil {
+		t.Fatalf("Unable to unmarshal: %v", err)
+	}
+	if ndata.Key != "hello2" {
+		t.Errorf("Read has come back and is wrong: %v", ndata)
+	}
+
+}
