@@ -116,6 +116,7 @@ func (s *Server) initDB() error {
 		if err != nil {
 			return fmt.Errorf("unable to update version: %w", err)
 		}
+		version = "1"
 	}
 
 	if err != nil && err.(*pg.Error).Code == "42P01" {
