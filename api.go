@@ -32,7 +32,7 @@ func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.Rea
 }
 
 func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.WriteResponse, error) {
-	_, err := s.db.Exec("INSERT INTO pgstore (key, value) VALUES ($1, $2)", req.Key, req.Value.Value)
+	_, err := s.db.Exec("INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
 	return &pstore.WriteResponse{}, err
 }
 
