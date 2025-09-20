@@ -41,7 +41,7 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 	_, err := s.db.Exec("INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
 	if err != nil {
 		// Dump the connection table:
-		rows, err := s.db.Query("SELECT * FROM pg_stat_activity WHERE state = 'idle'")
+		rows, err := s.db.Query("SELECT query FROM pg_stat_activity WHERE state = 'idle'")
 		if err != nil {
 			return nil, err
 		}
