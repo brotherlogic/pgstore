@@ -46,12 +46,10 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 			return nil, err
 		}
 		defer rows.Close()
+		var query string
 		for rows.Next() {
-			columns, err := rows.Columns()
-			if err != nil {
-				return nil, err
-			}
-			log.Printf("Row: %v", columns)
+			err = rows.Scan(&query)
+			log.Printf("%v -> %v", err, query)
 		}
 	}
 	return &pstore.WriteResponse{}, err
