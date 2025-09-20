@@ -23,8 +23,8 @@ func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.Rea
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
+
 	var data []byte
 	for rows.Next() {
 		if err := rows.Scan(&data); err == nil {
@@ -39,6 +39,21 @@ func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.Rea
 
 func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.WriteResponse, error) {
 	_, err := s.db.Exec("INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
+	if err != nil {
+		// Dump the connection table:
+		rows, err := s.db.Query("SELECT * FROM pg_stat_activity WHERE state = 'idle'")
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			columns, err := rows.Columns()
+			if err != nil {
+				return nil, err
+			}
+			log.Printf("Row: %v", columns)
+		}
+	}
 	return &pstore.WriteResponse{}, err
 }
 
