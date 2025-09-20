@@ -49,7 +49,7 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 		var query string
 		for rows.Next() {
 			err = rows.Scan(&query)
-			log.Printf("%v from %v-> %v", nerr, query)
+			log.Printf("%v from %v-> %v", nerr, err, query)
 		}
 	}
 	return &pstore.WriteResponse{}, err
