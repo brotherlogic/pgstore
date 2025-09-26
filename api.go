@@ -41,22 +41,6 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 	log.Printf("Running Write %v", req.GetKey())
 	defer log.Printf("Completed write %v", req.GetKey())
 	_, err := s.db.ExecContext(ctx, "INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
-	if err != nil {
-		// Dump the connection table:
-		rows, nerr := s.db.Query("SELECT query FROM pg_stat_activity")
-		if nerr != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		var query string
-		count := 1
-		for rows.Next() {
-			serr := rows.Scan(&query)
-			log.Printf("%v. %v from %v-> %v with %v", count, nerr, err, query, serr)
-			count++
-		}
-	}
-
 	return &pstore.WriteResponse{}, err
 }
 

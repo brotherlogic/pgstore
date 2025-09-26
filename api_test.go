@@ -3,12 +3,53 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	pstore "github.com/brotherlogic/pstore/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+func TestHeavyWrite(t *testing.T) {
+	pgurl, err := pgt.CreateDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", pgurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	s := &Server{db: db}
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
+
+	data := &pstore.ReadRequest{Key: "hello"}
+	datav, err := proto.Marshal(data)
+	if err != nil {
+		t.Fatalf("Cannot marshal: %v", err)
+	}
+
+	for i := 0; i < 10000; i++ {
+		_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: fmt.Sprintf("testing-%v", i), Value: &anypb.Any{Value: datav}})
+		if err != nil {
+			t.Fatalf("Unable to write: %v", err)
+		}
+	}
+
+	keys, err := s.GetKeys(context.Background(), &pstore.GetKeysRequest{})
+	if err != nil {
+		t.Fatalf("Unable to get all keys: %v", err)
+	}
+
+	if len(keys.GetKeys()) != 10000 {
+		t.Errorf("Not enough keys: %v", len(keys.GetKeys()))
+	}
+}
 
 func TestDelete(t *testing.T) {
 	pgurl, err := pgt.CreateDatabase(context.Background())
