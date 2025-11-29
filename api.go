@@ -84,12 +84,12 @@ func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*psto
 }
 
 func (s *Server) Delete(ctx context.Context, req *pstore.DeleteRequest) (*pstore.DeleteResponse, error) {
-	_, err := s.db.Exec("DELETE FROM pgstore WHERE key = $1", req.GetKey())
+	_, err := s.db.ExecContext(ctx, "DELETE FROM pgstore WHERE key = $1", req.GetKey())
 	return &pstore.DeleteResponse{}, err
 }
 
 func (s *Server) Count(ctx context.Context, req *pstore.CountRequest) (*pstore.CountResponse, error) {
-	_, err := s.db.Exec("UPDATE counters SET value = value + 1 WHERE key = $1", req.GetCounter())
+	_, err := s.db.ExecContext(ctx, "UPDATE counters SET value = value + 1 WHERE key = $1", req.GetCounter())
 	if err != nil {
 		return nil, fmt.Errorf("unable to update: %w", err)
 	}
@@ -108,6 +108,6 @@ func (s *Server) Count(ctx context.Context, req *pstore.CountRequest) (*pstore.C
 	}
 
 	// We need to do an insert here
-	_, err = s.db.Exec("INSERT INTO counters VALUES ($1, 1)", req.GetCounter())
+	_, err = s.db.ExecContext(ctx, "INSERT INTO counters VALUES ($1, 1)", req.GetCounter())
 	return &pstore.CountResponse{Count: 1}, err
 }
