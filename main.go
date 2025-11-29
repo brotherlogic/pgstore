@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	pg "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -40,6 +41,10 @@ func createServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	db.SetMaxOpenConns(20)
+	db.SetConnMaxIdleTime(time.Minute)
+	db.SetConnMaxLifetime(time.Hour)
 
 	return &Server{db: db}, nil
 }
