@@ -42,7 +42,7 @@ func createServer() (*Server, error) {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(50)
+	//db.SetMaxOpenConns(50)
 	db.SetConnMaxIdleTime(time.Minute)
 	db.SetConnMaxLifetime(time.Hour)
 
