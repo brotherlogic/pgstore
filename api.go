@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -13,6 +14,10 @@ import (
 )
 
 func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.ReadResponse, error) {
+	t := time.Now()
+	defer func() {
+		log.Printf("Read %v took %v", req.GetKey(), time.Since(t))
+	}()
 	// Check the version table
 	rows, err := s.db.Query("SELECT value FROM pgstore WHERE key = $1", req.GetKey())
 	if err != nil {
