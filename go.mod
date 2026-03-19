@@ -1,12 +1,14 @@
 module github.com/brotherlogic/pgstore
 
-go 1.23.8
+go 1.24.0
 
 require (
 	github.com/brotherlogic/pstore v0.33.0
 	github.com/lib/pq v1.10.10-0.20241116184759-b7ffbd3b47da
 	github.com/prometheus/client_golang v1.20.5
-	google.golang.org/grpc v1.67.1
+	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b
+	google.golang.org/grpc v1.79.3
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -17,10 +19,8 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.60.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/stapelberg/postgrestest v0.0.0-20250114201530-c4d5c90e782b // indirect
-	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 )
