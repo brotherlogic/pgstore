@@ -47,6 +47,9 @@ func createServer() (*Server, error) {
 	db.SetConnMaxLifetime(time.Hour)
 
 	out, err := db.Query("SHOW max_connections")
+	if err != nil {
+		return nil, err
+	}
 	var c int
 	out.Scan(&c)
 	log.Printf("%v and %v", c, err)
