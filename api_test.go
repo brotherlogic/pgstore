@@ -198,3 +198,44 @@ func TestReadDualWrite(t *testing.T) {
 	}
 
 }
+
+func TestGetKeysWithAvoidSuffix(t *testing.T) {
+	pgurl, err := pgt.CreateDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", pgurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	s := &Server{db: db}
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
+
+	keys := []string{"test/one", "test/two", "test/three", "other/one"}
+	for _, key := range keys {
+		_, err = s.Write(context.Background(), &pstore.WriteRequest{Key: key, Value: &anypb.Any{Value: []byte("data")}})
+		if err != nil {
+			t.Fatalf("Unable to write: %v", err)
+		}
+	}
+
+	resp, err := s.GetKeys(context.Background(), &pstore.GetKeysRequest{Prefix: "test/", AvoidSuffix: []string{"one"}})
+	if err != nil {
+		t.Fatalf("Unable to get keys: %v", err)
+	}
+
+	if len(resp.GetKeys()) != 2 {
+		t.Errorf("Wrong number of keys: %v (expected test/two and test/three)", resp.GetKeys())
+	}
+
+	for _, k := range resp.GetKeys() {
+		if k == "test/one" || k == "other/one" {
+			t.Errorf("Unexpected key in response: %v", k)
+		}
+	}
+}
