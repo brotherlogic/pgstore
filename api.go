@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -44,42 +46,37 @@ func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.W
 }
 
 func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*pstore.GetKeysResponse, error) {
+	var rows *sql.Rows
+	var err error
 	if req.GetPrefix() != "" {
-		rows, err := s.db.Query("SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
+		rows, err = s.db.Query("SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
+	} else {
+		rows, err = s.db.Query("SELECT key FROM pgstore")
+	}
 
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []string
+	for rows.Next() {
 		var key string
-		var keys []string
-		for rows.Next() {
-			if err := rows.Scan(&key); err == nil {
+		if err := rows.Scan(&key); err == nil {
+			avoid := false
+			for _, suffix := range req.GetAvoidSuffix() {
+				if strings.HasSuffix(key, suffix) {
+					avoid = true
+					break
+				}
+			}
+			if !avoid {
 				keys = append(keys, key)
 			}
 		}
-
-		return &pstore.GetKeysResponse{Keys: keys}, nil
 	}
 
-	if req.GetPrefix() == "" {
-		rows, err := s.db.Query("SELECT key FROM pgstore")
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-
-		var key string
-		var keys []string
-		for rows.Next() {
-			if err := rows.Scan(&key); err == nil {
-				keys = append(keys, key)
-			}
-		}
-
-		return &pstore.GetKeysResponse{Keys: keys}, nil
-	}
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	return &pstore.GetKeysResponse{Keys: keys}, nil
 }
 
 func (s *Server) Delete(ctx context.Context, req *pstore.DeleteRequest) (*pstore.DeleteResponse, error) {
