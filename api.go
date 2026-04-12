@@ -55,7 +55,7 @@ func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*psto
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Query error: %w", err)
 	}
 	defer rows.Close()
 
