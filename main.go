@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -42,7 +43,7 @@ func createServer() (*Server, error) {
 		return nil, err
 	}
 
-	//db.SetMaxOpenConns(50)
+	db.SetMaxOpenConns(100)
 	db.SetConnMaxIdleTime(time.Minute)
 	db.SetConnMaxLifetime(time.Hour)
 
@@ -50,8 +51,11 @@ func createServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer out.Close()
 	var c int
-	out.Scan(&c)
+	if out.Next() {
+		out.Scan(&c)
+	}
 	log.Printf("%v and %v", c, err)
 
 	return &Server{db: db}, nil
@@ -80,13 +84,13 @@ func (s *Server) createVersionTable(value int) error {
 
 func (s *Server) checkDBVersion() (string, error) {
 	// Validate that we can reach the db
-	pingErr := s.db.Ping()
+	pingErr := s.db.PingContext(context.Background())
 	if pingErr != nil {
 		return "", pingErr
 	}
 
 	// Check the version table
-	rows, err := s.db.Query("SELECT * FROM version")
+	rows, err := s.db.QueryContext(context.Background(), "SELECT * FROM version")
 	if err != nil {
 		return "", err
 	}
@@ -132,12 +136,16 @@ func (s *Server) initDB() error {
 		version = "1"
 	}
 
-	if err != nil && err.(*pg.Error).Code == "42P01" {
-		err = s.createVersionTable(1)
-		if err != nil {
-			return fmt.Errorf("unable to create version table: %w", err)
+	if err != nil {
+		if pgErr, ok := err.(*pg.Error); ok && pgErr.Code == "42P01" {
+			err = s.createVersionTable(1)
+			if err != nil {
+				return fmt.Errorf("unable to create version table: %w", err)
+			}
+			version = "1"
+		} else if status.Code(err) != codes.OK {
+			return fmt.Errorf("check version failed: %w", err)
 		}
-		version = "1"
 	}
 
 	// Version 2 adds the first version of the storage table
