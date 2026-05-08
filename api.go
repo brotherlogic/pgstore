@@ -21,7 +21,7 @@ func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.Rea
 		log.Printf("Read %v took %v", req.GetKey(), time.Since(t))
 	}()
 	// Check the version table
-	rows, err := s.db.Query("SELECT value FROM pgstore WHERE key = $1", req.GetKey())
+	rows, err := s.db.QueryContext(ctx, "SELECT value FROM pgstore WHERE key = $1", req.GetKey())
 	if err != nil {
 		log.Printf("Error in queury: %v", err)
 		return nil, err
@@ -49,9 +49,9 @@ func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*psto
 	var rows *sql.Rows
 	var err error
 	if req.GetPrefix() != "" {
-		rows, err = s.db.Query("SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
+		rows, err = s.db.QueryContext(ctx, "SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
 	} else {
-		rows, err = s.db.Query("SELECT key FROM pgstore")
+		rows, err = s.db.QueryContext(ctx, "SELECT key FROM pgstore")
 	}
 
 	if err != nil {
@@ -85,25 +85,11 @@ func (s *Server) Delete(ctx context.Context, req *pstore.DeleteRequest) (*pstore
 }
 
 func (s *Server) Count(ctx context.Context, req *pstore.CountRequest) (*pstore.CountResponse, error) {
-	_, err := s.db.ExecContext(ctx, "UPDATE counters SET value = value + 1 WHERE key = $1", req.GetCounter())
-	if err != nil {
-		return nil, fmt.Errorf("unable to update: %w", err)
-	}
-
-	rows, err := s.db.Query("SELECT value FROM counters WHERE key = $1", req.GetCounter())
-	if err != nil {
-		return nil, fmt.Errorf("unable to select: %w", err)
-	}
-	defer rows.Close()
-
 	var value int64
-	for rows.Next() {
-		if err := rows.Scan(&value); err == nil {
-			return &pstore.CountResponse{Count: value}, nil
-		}
+	err := s.db.QueryRowContext(ctx, "INSERT INTO counters (key, value) VALUES ($1, 1) ON CONFLICT (key) DO UPDATE SET value = counters.value + 1 RETURNING value", req.GetCounter()).Scan(&value)
+	if err != nil {
+		return nil, fmt.Errorf("unable to count: %w", err)
 	}
 
-	// We need to do an insert here
-	_, err = s.db.ExecContext(ctx, "INSERT INTO counters VALUES ($1, 1)", req.GetCounter())
-	return &pstore.CountResponse{Count: 1}, err
+	return &pstore.CountResponse{Count: value}, nil
 }
