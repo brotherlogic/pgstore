@@ -22,17 +22,23 @@
     // Use 'postCreateCommand' to run commands after the container is created.
     // Ensure dependencies are installed here
     "postCreateCommand": "/usr/local/go/bin/go version && pwd && ./postCreate.sh",
+    "initializeCommand": "echo \"GH_TOKEN=$(gh auth token)\" > .devcontainer/.env.auth",
     // "customizations": {},
     // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
     // "remoteUser": "root"
     "containerEnv": {
-        "GH_GIT_PROTOCOL": "ssh"
+        "GH_GIT_PROTOCOL": "ssh",
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8",
+        "TZ": "America/Los_Angeles"
     },
     "remoteOTEL.enabled": true,
     "forwardPorts": [],
     "runArgs": [
         "--security-opt",
         "label=disable",
+        "--env-file",
+        "${localWorkspaceFolder}/.devcontainer/.env.auth"
     ],
     "mounts": [
         {
