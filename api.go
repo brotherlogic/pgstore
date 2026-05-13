@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -15,45 +15,74 @@ import (
 	pstore "github.com/brotherlogic/pstore/proto"
 )
 
+var (
+	latencyHistogram = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "pgstore_latency",
+		Help:    "The latency of the requests",
+		Buckets: prometheus.ExponentialBuckets(0.001, 2, 15),
+	}, []string{"method"})
+
+	requestCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "pgstore_requests",
+		Help: "The number of requests",
+	}, []string{"method", "status"})
+)
+
 func (s *Server) Read(ctx context.Context, req *pstore.ReadRequest) (*pstore.ReadResponse, error) {
 	t := time.Now()
+	var err error
 	defer func() {
-		log.Printf("Read %v took %v", req.GetKey(), time.Since(t))
+		latencyHistogram.WithLabelValues("Read").Observe(time.Since(t).Seconds())
+		requestCounter.WithLabelValues("Read", status.Code(err).String()).Inc()
 	}()
-	// Check the version table
-	rows, err := s.db.QueryContext(ctx, "SELECT value FROM pgstore WHERE key = $1", req.GetKey())
-	if err != nil {
-		log.Printf("Error in queury: %v", err)
-		return nil, err
-	}
-	defer rows.Close()
 
 	var data []byte
-	for rows.Next() {
-		if err := rows.Scan(&data); err == nil {
-			return &pstore.ReadResponse{Value: &anypb.Any{Value: data}}, err
-		} else {
+	err = s.db.QueryRowContext(ctx, "SELECT value FROM pgstore WHERE key = $1", req.GetKey()).Scan(&data)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err = status.Errorf(codes.NotFound, "%v was not found in the db", req.GetKey())
 			return nil, err
 		}
+		return nil, err
 	}
 
-	return nil, status.Errorf(codes.NotFound, "%v was not found in the db", req.GetKey())
+	return &pstore.ReadResponse{Value: &anypb.Any{Value: data}}, nil
 }
 
 func (s *Server) Write(ctx context.Context, req *pstore.WriteRequest) (*pstore.WriteResponse, error) {
-	_, err := s.db.ExecContext(ctx, "INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
+	t := time.Now()
+	var err error
+	defer func() {
+		latencyHistogram.WithLabelValues("Write").Observe(time.Since(t).Seconds())
+		requestCounter.WithLabelValues("Write", status.Code(err).String()).Inc()
+	}()
+
+	_, err = s.db.ExecContext(ctx, "INSERT INTO pgstore (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", req.Key, req.Value.Value)
 	return &pstore.WriteResponse{}, err
 }
 
 func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*pstore.GetKeysResponse, error) {
-	var rows *sql.Rows
+	t := time.Now()
 	var err error
+	defer func() {
+		latencyHistogram.WithLabelValues("GetKeys").Observe(time.Since(t).Seconds())
+		requestCounter.WithLabelValues("GetKeys", status.Code(err).String()).Inc()
+	}()
+
+	query := "SELECT key FROM pgstore WHERE 1=1"
+	var args []interface{}
+
 	if req.GetPrefix() != "" {
-		rows, err = s.db.QueryContext(ctx, "SELECT key FROM pgstore WHERE key LIKE $1", req.GetPrefix()+"%")
-	} else {
-		rows, err = s.db.QueryContext(ctx, "SELECT key FROM pgstore")
+		query += fmt.Sprintf(" AND key LIKE $%d", len(args)+1)
+		args = append(args, req.GetPrefix()+"%")
 	}
 
+	for _, suffix := range req.GetAvoidSuffix() {
+		query += fmt.Sprintf(" AND key NOT LIKE $%d", len(args)+1)
+		args = append(args, "%"+suffix)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("Query error: %w", err)
 	}
@@ -63,16 +92,7 @@ func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*psto
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err == nil {
-			avoid := false
-			for _, suffix := range req.GetAvoidSuffix() {
-				if strings.HasSuffix(key, suffix) {
-					avoid = true
-					break
-				}
-			}
-			if !avoid {
-				keys = append(keys, key)
-			}
+			keys = append(keys, key)
 		}
 	}
 
@@ -80,13 +100,27 @@ func (s *Server) GetKeys(ctx context.Context, req *pstore.GetKeysRequest) (*psto
 }
 
 func (s *Server) Delete(ctx context.Context, req *pstore.DeleteRequest) (*pstore.DeleteResponse, error) {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM pgstore WHERE key = $1", req.GetKey())
+	t := time.Now()
+	var err error
+	defer func() {
+		latencyHistogram.WithLabelValues("Delete").Observe(time.Since(t).Seconds())
+		requestCounter.WithLabelValues("Delete", status.Code(err).String()).Inc()
+	}()
+
+	_, err = s.db.ExecContext(ctx, "DELETE FROM pgstore WHERE key = $1", req.GetKey())
 	return &pstore.DeleteResponse{}, err
 }
 
 func (s *Server) Count(ctx context.Context, req *pstore.CountRequest) (*pstore.CountResponse, error) {
+	t := time.Now()
+	var err error
+	defer func() {
+		latencyHistogram.WithLabelValues("Count").Observe(time.Since(t).Seconds())
+		requestCounter.WithLabelValues("Count", status.Code(err).String()).Inc()
+	}()
+
 	var value int64
-	err := s.db.QueryRowContext(ctx, "INSERT INTO counters (key, value) VALUES ($1, 1) ON CONFLICT (key) DO UPDATE SET value = counters.value + 1 RETURNING value", req.GetCounter()).Scan(&value)
+	err = s.db.QueryRowContext(ctx, "INSERT INTO counters (key, value) VALUES ($1, 1) ON CONFLICT (key) DO UPDATE SET value = counters.value + 1 RETURNING value", req.GetCounter()).Scan(&value)
 	if err != nil {
 		return nil, fmt.Errorf("unable to count: %w", err)
 	}

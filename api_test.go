@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	pstore "github.com/brotherlogic/pstore/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -237,5 +238,36 @@ func TestGetKeysWithAvoidSuffix(t *testing.T) {
 		if k == "test/one" || k == "other/one" {
 			t.Errorf("Unexpected key in response: %v", k)
 		}
+	}
+}
+
+func TestMetrics(t *testing.T) {
+	pgurl, err := pgt.CreateDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", pgurl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	s := &Server{db: db}
+	err = s.initDB()
+	if err != nil {
+		t.Fatalf("Unable to init db: %v", err)
+	}
+
+	// Trigger a Read which should increment metrics
+	_, _ = s.Read(context.Background(), &pstore.ReadRequest{Key: "missing"})
+
+	count := testutil.CollectAndCount(requestCounter)
+	if count == 0 {
+		t.Errorf("No metrics collected for requestCounter")
+	}
+
+	lcount := testutil.CollectAndCount(latencyHistogram)
+	if lcount == 0 {
+		t.Errorf("No metrics collected for latencyHistogram")
 	}
 }
